@@ -1,5 +1,7 @@
 *.class
-
+*.iml
+.DS_Store
+target/
 # Package Files #
 *.jar
 *.war

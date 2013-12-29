@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:p="http://www.springframework.org/schema/p"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xsi:schemaLocation="
+       http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+    http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+    http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+    http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
+    http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd">
+
+    <!-- 导入数据源配置文件 -->
+    <context:property-placeholder location="classpath:mysql.properties,classpath:c3p0.properties"/>
+
+    <!-- JNDI获取数据源(使用c3p0连接池) -->
+    <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource" destroy-method="close">
+        <!-- 数据库驱动 -->
+        <property name="driverClass" value="${db.driver}"/>
+        <!-- 连接URL串 -->
+        <property name="jdbcUrl" value="${db.url}"/>
+        <!-- 连接用户名 -->
+        <property name="user" value="${db.username}"/>
+        <!-- 连接密码 -->
+        <property name="password" value="${db.password}"/>
+        <!-- 初始化连接池时连接数量为5个 -->
+        <property name="initialPoolSize" value="${cp.initPoolSize}"/>
+        <!-- 允许最小连接数量为5个 -->
+        <property name="minPoolSize" value="${cp.minPoolSize}"/>
+        <!-- 允许最大连接数量为20个 -->
+        <property name="maxPoolSize" value="${cp.maxPoolSize}"/>
+        <!-- 允许连接池最大生成100个PreparedStatement对象 -->
+        <property name="maxStatements" value="${cp.maxStatements}"/>
+        <!-- 连接有效时间，连接超过3600秒未使用，则该连接丢弃 -->
+        <property name="maxIdleTime" value="${cp.maxIdleTime}"/>
+        <!-- 将连接池的连接数保持在minpoolsize 必须小于maxIdleTime设置  默认值为0代表不处理单位秒 -->
+        <property name="maxIdleTimeExcessConnections" value="${cp.maxIdleTimeExcessConnections}"/>
+        <!-- 连接用完时，一次产生的新连接步进值为2 -->
+        <property name="acquireIncrement" value="${cp.acquireIncrement}"/>
+        <!-- 获取连接失败后再尝试10次，再失败则返回DAOException异常 -->
+        <property name="acquireRetryAttempts" value="${cp.acquireRetryAttempts}"/>
+        <!-- 获取下一次连接时最短间隔600毫秒，有助于提高性能 -->
+        <property name="acquireRetryDelay" value="${cp.acquireRetryDelay}"/>
+        <!-- 每个1200秒检查连接对象状态 -->
+        <property name="idleConnectionTestPeriod" value="${cp.idleConnectionTestPeriod}"/>
+        <!-- 获取新连接的超时时间为10000毫秒 -->
+        <property name="checkoutTimeout" value="${cp.checkoutTimeout}"/>
+        <!-- 检查连接的有效性 -->
+        <property name="testConnectionOnCheckin" value="true"/>
+    </bean>
+
+    <!-- 配置事务管理器 -->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource" />
+    </bean>
+    <!-- 通过AOP配置提供事务增强，让service包下所有Bean的所有方法拥有事务 -->
+    <aop:config proxy-target-class="true">
+        <aop:pointcut id="serviceMethod" expression="execution(* com.app.service..*(..))"/>
+        <aop:advisor pointcut-ref="serviceMethod" advice-ref="txAdvice"/>
+    </aop:config>
+    <tx:advice id="txAdvice" transaction-manager="transactionManager">
+        <tx:attributes>
+            <tx:method name="*"/>
+        </tx:attributes>
+    </tx:advice>
+
+    <!-- 配置Jdbc模板 -->
+    <bean id="jdbcTemplate" class="org.springframework.jdbc.core.JdbcTemplate">
+        <property name="dataSource" ref="dataSource" />
+    </bean>
+
+    <bean id="sqlSession" class="org.mybatis.spring.SqlSessionTemplate">
+        <constructor-arg index="0" ref="sqlSessionFactory"/>
+    </bean>
+
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="configLocation" value="classpath:mybatis-config.xml" />
+        <property name="dataSource" ref="dataSource" />
+    </bean>
+
+    <!-- scan for mappers and let them be autowired      -->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.app.dao" />
+    </bean>
+
+</beans>
